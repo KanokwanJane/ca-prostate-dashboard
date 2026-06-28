@@ -21,6 +21,9 @@ h1 .accent{color:#2F6DB0}
 .topstats{display:flex;gap:34px;margin-top:22px;flex-wrap:wrap}
 .topstat .n{font-size:26px;font-weight:600}
 .topstat .l{font-size:12.5px;color:var(--muted)}
+.controls{margin-top:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.controls label{font-size:13px;color:var(--muted)}
+.controls select{height:38px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:500 14px 'IBM Plex Sans Thai',Tahoma,sans-serif;padding:0 34px 0 12px}
 .callout{margin-top:24px;background:#FFF;border:1px solid var(--line);border-left:5px solid #2F6DB0;border-radius:12px;padding:16px 18px;display:flex;gap:16px;align-items:flex-start}
 .callout .big{font-family:'IBM Plex Mono',Consolas,monospace;font-size:32px;font-weight:600;color:#2F6DB0;line-height:1;white-space:nowrap}
 .callout p{font-size:14px;color:#3a4750}
@@ -73,6 +76,10 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-si
 <div class="eyebrow">โรงพยาบาลจุฬาภรณ์ · ทะเบียนมะเร็ง · วิเคราะห์ระดับผู้ป่วย</div>
 <h1>รูปแบบการรักษา<span class="accent">มะเร็งต่อมลูกหมาก</span><br>ต่อผู้ป่วย แยกตามระยะ</h1>
 <p class="standfirst">ผู้ป่วยหนึ่งคนอาจได้รับหลายวิธีร่วมกันเป็นแผนเดียว เช่น ADT + รังสี หรือ ADT + เคมี/ARPI การนับต่อเหตุการณ์จึงนับซ้ำได้ รายงานนี้นับ <b>ต่อผู้ป่วย</b> และแสดงเป็นชุดการรักษา (regimen)</p>
+<div class="controls">
+<label for="yearFilter">ปีข้อมูล</label>
+<select id="yearFilter"><option value="all">รวมทุกปี</option></select>
+</div>
 <div class="topstats mono" id="topstats"></div>
 <div class="callout">
 <div class="big" id="calloutPercent">-</div>
@@ -115,8 +122,26 @@ function esc(value){
   return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function renderTop(){
-  const s = D.summary;
+function currentYear(){
+  return yearFilter.value || 'all';
+}
+
+function currentData(){
+  const year = currentYear();
+  return year === 'all' ? D.all : D.byYear[year];
+}
+
+function yearLabel(){
+  const year = currentYear();
+  return year === 'all' ? 'รวมทุกปี' : `ปี ${year}`;
+}
+
+function fillYearFilter(){
+  (D.years || []).forEach(year => yearFilter.add(new Option(year, year)));
+}
+
+function renderTop(data){
+  const s = data.summary;
   const stats = [
     [fmt(s.knownStagePatients), 'ผู้ป่วยที่ระบุระยะ'],
     [pct(s.multimodalPercent), 'ได้รับ ≥2 วิธีร่วมกัน'],
@@ -128,11 +153,11 @@ function renderTop(){
   calloutPercent.textContent = pct(s.multimodalPercent);
   calloutLead.textContent = `ผู้ป่วย ${fmt(s.multimodalPatients)} จาก ${fmt(s.activePatients)} รายได้รับตั้งแต่ 2 วิธีขึ้นไป`;
   calloutText.textContent = 'ตัวเลขนี้คำนวณจากชุดวิธีการรักษาต่อผู้ป่วย โดยตัดกลุ่มประคับประคอง ส่งต่อ ปฏิเสธ ขาดติดตาม และไม่ระบุออกจากการจัดชุด';
-  sourceText.textContent = `ที่มา: ${D.sourceFile} · สร้างจาก Patient Data และ Treatment Data`;
+  sourceText.textContent = `ที่มา: ${D.sourceFile} · ${yearLabel()} · สร้างจาก Patient Data และ Treatment Data`;
 }
 
-function heatCell(item, stage){
-  const meta = D.stages.find(s => s.stage === stage);
+function heatCell(data, item, stage){
+  const meta = data.stages.find(s => s.stage === stage);
   const v = item.stages[stage] || {count:0, percent:0};
   if(!v.count) return '<td class="ht z"><span>·</span></td>';
   const wash = Math.max(0.22, 0.86 - (v.percent / 100));
@@ -143,18 +168,18 @@ function heatCell(item, stage){
   </td>`;
 }
 
-function renderHeatmap(){
-  const head = `<thead><tr><th></th>${D.stages.map(s => `<th class="hs" style="color:${s.color}">${esc(s.label)}<span>n=${fmt(s.patients)}</span></th>`).join('')}</tr></thead>`;
-  const body = `<tbody>${D.heatmap.map(row => `<tr><th class="hm">${esc(row.label)}</th>${D.stages.map(s => heatCell(row, s.stage)).join('')}</tr>`).join('')}</tbody>`;
+function renderHeatmap(data){
+  const head = `<thead><tr><th></th>${data.stages.map(s => `<th class="hs" style="color:${s.color}">${esc(s.label)}<span>n=${fmt(s.patients)}</span></th>`).join('')}</tr></thead>`;
+  const body = `<tbody>${data.heatmap.map(row => `<tr><th class="hm">${esc(row.label)}</th>${data.stages.map(s => heatCell(data, row, s.stage)).join('')}</tr>`).join('')}</tbody>`;
   heatmap.innerHTML = head + body;
-  const adt = D.heatmap.find(r => r.treatment === 'Hormone');
-  const rt = D.heatmap.find(r => r.treatment === 'Radiation');
-  const chemo = D.heatmap.find(r => r.treatment === 'Chemotherapy');
+  const adt = data.heatmap.find(r => r.treatment === 'Hormone');
+  const rt = data.heatmap.find(r => r.treatment === 'Radiation');
+  const chemo = data.heatmap.find(r => r.treatment === 'Chemotherapy');
   heatNote.textContent = `ADT ${pct(adt.stages.I.percent)} ถึง ${pct(adt.stages.IV.percent)} · รังสีสูงสุดที่ระยะ III ${pct(rt.stages.III.percent)} · เคมีบำบัดเด่นในระยะ IV ${pct(chemo.stages.IV.percent)}`;
 }
 
-function renderPanels(){
-  panels.innerHTML = D.panels.map(panel => {
+function renderPanels(data){
+  panels.innerHTML = data.panels.map(panel => {
     const rows = panel.regimens.map(r => {
       const fill = r.combined
         ? `repeating-linear-gradient(115deg,${panel.color},${panel.color} 7px,${panel.color}cc 7px,${panel.color}cc 14px)`
@@ -175,14 +200,21 @@ function renderPanels(){
   }).join('');
 }
 
+function render(){
+  const data = currentData();
+  renderTop(data);
+  renderHeatmap(data);
+  renderPanels(data);
+}
+
 function init(){
   if(!D){
     loadError.hidden = false;
     return;
   }
-  renderTop();
-  renderHeatmap();
-  renderPanels();
+  fillYearFilter();
+  yearFilter.addEventListener('change', render);
+  render();
 }
 
 init();

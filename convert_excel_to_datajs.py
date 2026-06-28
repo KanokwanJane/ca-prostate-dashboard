@@ -54,6 +54,15 @@ def clean(value, default="ไม่ระบุ"):
     return text if text else default
 
 
+def clean_year(value):
+    if pd.isna(value):
+        return "ไม่ระบุ"
+    try:
+        return str(int(float(value)))
+    except (TypeError, ValueError):
+        return str(value).strip() or "ไม่ระบุ"
+
+
 def pct(numerator, denominator, digits=1):
     if not denominator:
         return 0
@@ -67,24 +76,7 @@ def fmt_regimen(treatments):
     return " + ".join(labels)
 
 
-def main():
-    excel_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("prostate_cancer_dashboard.xlsx")
-    output_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("data.js")
-
-    dashboard = pd.read_excel(excel_path, sheet_name="Dashboard")
-    patients = pd.read_excel(excel_path, sheet_name="Patient Data")
-    treatments = pd.read_excel(excel_path, sheet_name="Treatment Data")
-    unknown = pd.read_excel(excel_path, sheet_name="Unknown", header=1)
-
-    patients["HN"] = patients["HN"].map(clean)
-    patients["stage"] = patients["Stage_หลัก"].map(clean)
-    patients = patients[patients["stage"].isin(STAGE_ORDER)].copy()
-
-    treatments["HN"] = treatments["HN"].map(clean)
-    treatments["stage"] = treatments["Stage_หลัก"].map(clean)
-    treatments["treatment"] = treatments["วิธีการรักษา"].map(clean)
-    treatments = treatments[treatments["stage"].isin(STAGE_ORDER)].copy()
-
+def build_dataset(patients, treatments, unknown_stage_patients):
     stage_patient_counts = {
         stage: int(patients.loc[patients["stage"] == stage, "HN"].nunique())
         for stage in STAGE_ORDER
@@ -168,13 +160,12 @@ def main():
     total_active = sum(active_patient_counts.values())
     total_multimodal = sum(multimodal_counts.values())
 
-    data = {
-        "sourceFile": excel_path.name,
+    return {
         "summary": {
             "knownStagePatients": total_known,
             "treatmentEvents": int(len(treatments)),
             "stageCount": len(STAGE_ORDER),
-            "unknownStagePatients": int(dashboard.iloc[4, 7]) if pd.notna(dashboard.iloc[4, 7]) else int(unknown["HN"].nunique()) if "HN" in unknown else 0,
+            "unknownStagePatients": int(unknown_stage_patients),
             "activePatients": int(total_active),
             "multimodalPatients": int(total_multimodal),
             "multimodalPercent": pct(total_multimodal, total_active, 0),
@@ -191,12 +182,60 @@ def main():
         ],
         "heatmap": [coverage[treatment] for treatment, _ in HEATMAP_TREATMENTS],
         "panels": panels,
+    }
+
+
+def main():
+    excel_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("prostate_cancer_dashboard.xlsx")
+    output_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("data.js")
+
+    dashboard = pd.read_excel(excel_path, sheet_name="Dashboard")
+    patients = pd.read_excel(excel_path, sheet_name="Patient Data")
+    treatments = pd.read_excel(excel_path, sheet_name="Treatment Data")
+    unknown = pd.read_excel(excel_path, sheet_name="Unknown", header=1)
+
+    patients["HN"] = patients["HN"].map(clean)
+    patients["year"] = patients["ปี"].map(clean_year)
+    patients["stage"] = patients["Stage_หลัก"].map(clean)
+    patients = patients[patients["stage"].isin(STAGE_ORDER)].copy()
+
+    treatments["HN"] = treatments["HN"].map(clean)
+    treatments["year"] = treatments["ปี"].map(clean_year)
+    treatments["stage"] = treatments["Stage_หลัก"].map(clean)
+    treatments["treatment"] = treatments["วิธีการรักษา"].map(clean)
+    treatments = treatments[treatments["stage"].isin(STAGE_ORDER)].copy()
+
+    if "ปี" in unknown.columns:
+        unknown["year"] = unknown["ปี"].map(clean_year)
+    else:
+        unknown["year"] = "ไม่ระบุ"
+
+    years = sorted(y for y in patients["year"].dropna().unique() if y != "ไม่ระบุ")
+    unknown_total = (
+        int(dashboard.iloc[4, 7])
+        if pd.notna(dashboard.iloc[4, 7])
+        else int(unknown["HN"].nunique())
+        if "HN" in unknown
+        else 0
+    )
+
+    data = {
+        "sourceFile": excel_path.name,
+        "years": years,
+        "all": build_dataset(patients, treatments, unknown_total),
+        "byYear": {},
         "notes": [
             "รวมระยะย่อย IIA/IIB/IIC เป็น II, IIIA/IIIB/IIIC เป็น III, IVA/IVB เป็น IV",
             "Heatmap นับต่อผู้ป่วยต่อวิธีการรักษา ส่วนเหตุการณ์การรักษาทั้งหมดมาจาก Treatment Data",
             "Regimen นับชุดวิธีการรักษาต่อผู้ป่วย โดยตัดกลุ่มประคับประคอง ส่งต่อ ปฏิเสธ ขาดติดตาม และไม่ระบุออกจากการจัดชุด",
         ],
     }
+
+    for year in years:
+        year_patients = patients[patients["year"] == year].copy()
+        year_treatments = treatments[treatments["year"] == year].copy()
+        year_unknown = int(unknown.loc[unknown["year"] == year, "HN"].nunique()) if "HN" in unknown else 0
+        data["byYear"][year] = build_dataset(year_patients, year_treatments, year_unknown)
 
     output_path.write_text(
         "window.CA_PROSTATE_DATA = "
