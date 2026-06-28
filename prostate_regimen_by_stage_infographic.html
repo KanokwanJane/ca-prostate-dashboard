@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>รูปแบบการรักษามะเร็งต่อมลูกหมาก (ต่อผู้ป่วย) แยกตามระยะ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#16232E;--paper:#F6F4EF;--card:#FFF;--muted:#7C848C;--line:#E2DDD3}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans Thai',sans-serif;background:var(--paper);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;padding:32px 18px 60px}
+.wrap{max-width:1000px;margin:0 auto}
+.mono{font-family:'IBM Plex Mono',monospace;font-feature-settings:"tnum"}
+.eyebrow{font-size:12.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#C0453B;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.eyebrow::before{content:"";width:26px;height:2px;background:#C0453B}
+h1{font-size:37px;font-weight:700;letter-spacing:-.01em;line-height:1.14}
+h1 .accent{color:#2F6DB0}
+.standfirst{margin-top:14px;font-size:16px;color:#3a4750;max-width:700px;font-weight:300}
+.topstats{display:flex;gap:34px;margin-top:22px;flex-wrap:wrap}
+.topstat .n{font-size:26px;font-weight:600}
+.topstat .l{font-size:12.5px;color:var(--muted)}
+.callout{margin-top:24px;background:#FFF;border:1px solid var(--line);border-left:5px solid #2F6DB0;border-radius:12px;padding:16px 18px;display:flex;gap:16px;align-items:flex-start}
+.callout .big{font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:600;color:#2F6DB0;line-height:1;white-space:nowrap}
+.callout p{font-size:14px;color:#3a4750}
+.callout b{color:var(--ink);font-weight:600}
+.rule{height:1px;background:var(--line);margin:30px 0 0}
+.sec-h{margin:40px 0 6px}
+.sec-k{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.sec-t{font-size:23px;font-weight:600;letter-spacing:-.01em;margin-top:4px}
+.sec-d{font-size:14.5px;color:#3a4750;font-weight:300;margin-top:6px;max-width:730px}
+/* heatmap */
+.heatcard{background:#FFF;border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:18px;overflow-x:auto}
+table.heat{border-collapse:separate;border-spacing:6px;width:100%}
+.heat th.hs{font-size:14px;font-weight:700;text-align:center;padding:4px}
+.heat th.hs span{display:block;font:500 11px 'IBM Plex Mono',monospace;color:var(--muted)}
+.heat th.hm{text-align:right;font-size:13.5px;font-weight:500;color:#2b3640;padding-right:10px;white-space:nowrap}
+.heat td.ht{text-align:center;border-radius:9px;height:50px;min-width:96px;vertical-align:middle}
+.heat td.ht b{display:block;font:600 16px 'IBM Plex Mono',monospace;line-height:1.1}
+.heat td.ht i{font:500 10.5px 'IBM Plex Mono',monospace;font-style:normal}
+.heat td.z{background:#F1EDE4}
+.heat td.z span{color:#C3BDB0;font-size:16px}
+.legendnote{font-size:12px;color:var(--muted);padding:10px 2px 0}
+/* panels */
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
+.panel{background:#FFF;border:1px solid var(--line);border-radius:16px;padding:18px 20px 20px;border-left:5px solid var(--c)}
+.phead{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.ptag{font-size:20px;font-weight:700;color:var(--c)}
+.pmeta{display:flex;flex-direction:column}
+.pmeta span:first-child{font-size:13.5px;font-weight:500}
+.pmeta .pn{font-size:11.5px;color:var(--muted)}
+.brow{display:grid;grid-template-columns:130px 1fr 80px;align-items:center;gap:10px;padding:4px 0}
+.bname{font:600 12.5px 'IBM Plex Mono',monospace;color:#2b3640;text-align:right;display:flex;justify-content:flex-end;align-items:center;gap:6px}
+.cx{font-family:'IBM Plex Sans Thai';font-weight:500;font-size:9.5px;color:#fff;background:#9aa0a6;border-radius:4px;padding:1px 5px}
+.btrack{height:18px;background:#F1EDE4;border-radius:5px;overflow:hidden}
+.bfill{display:block;height:100%;border-radius:5px}
+.bval{font-family:'IBM Plex Mono',monospace;font-size:12px;display:flex;gap:6px;align-items:baseline}
+.bval b{font-weight:600} .bval i{font-style:normal;color:var(--muted);font-size:11px}
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+@media(max-width:720px){h1{font-size:29px}.panels{grid-template-columns:1fr}.brow{grid-template-columns:112px 1fr 74px}}
+</style></head><body><div class="wrap">
+
+<header>
+<div class="eyebrow">โรงพยาบาลจุฬาภรณ์ · ทะเบียนมะเร็ง · วิเคราะห์ระดับผู้ป่วย</div>
+<h1>รูปแบบการรักษา<span class="accent">มะเร็งต่อมลูกหมาก</span><br>ต่อผู้ป่วย แยกตามระยะ</h1>
+<p class="standfirst">ผู้ป่วยหนึ่งคนมักได้รับหลายวิธีร่วมกันเป็นแผนเดียว เช่น ADT + รังสี หรือ ADT + เคมี/ARPI การนับ "ต่อเหตุการณ์" จึงนับซ้ำ รายงานนี้นับ <b>ต่อผู้ป่วย</b> และแสดงเป็นชุดการรักษา (regimen)</p>
+<div class="topstats mono">
+<div class="topstat"><div class="n">556</div><div class="l">ผู้ป่วยที่ได้รับการรักษาเชิงรุก</div></div>
+<div class="topstat"><div class="n">48%</div><div class="l">ได้รับ ≥2 วิธีร่วมกัน</div></div>
+<div class="topstat"><div class="n">4</div><div class="l">ระยะของโรค</div></div>
+</div>
+<div class="callout">
+<div class="big">48%</div>
+<p>ของผู้ป่วยได้รับการรักษา <b>ตั้งแต่ 2 วิธีขึ้นไป</b> ในแผนเดียว — สอดคล้องกับการรักษาแบบผสมตามมาตรฐาน (เช่น ฮอร์โมนร่วมรังสีในระยะลุกลามเฉพาะที่ และฮอร์โมนร่วมเคมี/ARPI ในระยะแพร่กระจาย) ตัวเลขร้อยละด้านล่างคิดเทียบ "จำนวนผู้ป่วยในระยะ" ไม่ใช่จำนวนเหตุการณ์</p>
+</div>
+</header>
+
+<div class="sec-h">
+<div class="sec-k">มุมมองที่ 1 · ความครอบคลุมของแต่ละวิธี</div>
+<div class="sec-t">ร้อยละผู้ป่วยในแต่ละระยะที่ได้รับแต่ละวิธี</div>
+<div class="sec-d">เนื่องจากผู้ป่วยได้รับหลายวิธีร่วมกัน ผลรวมในแต่ละระยะจึงเกิน 100% ได้ — ความเข้มของสีแทนสัดส่วนผู้ป่วย</div>
+</div>
+<div class="heatcard"><table class="heat"><thead><tr><th></th><th class="hs" style="color:#2E8B7F">ระยะ I<span>n=9</span></th><th class="hs" style="color:#2F6DB0">ระยะ II<span>n=114</span></th><th class="hs" style="color:#D98A2B">ระยะ III<span>n=180</span></th><th class="hs" style="color:#C0453B">ระยะ IV<span>n=253</span></th></tr></thead><tbody><tr><th class="hm">ฮอร์โมน (ADT)</th><td class="ht" style="background:#2E8B7F;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.65)"><b style="color:#1b2730">22%</b><i style="color:#1b2730;opacity:.8">n=2</i></td><td class="ht" style="background:#2F6DB0;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.43)"><b style="color:#fff">48%</b><i style="color:#fff;opacity:.8">n=55</i></td><td class="ht" style="background:#D98A2B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.36)"><b style="color:#fff">57%</b><i style="color:#fff;opacity:.8">n=103</i></td><td class="ht" style="background:#C0453B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.23)"><b style="color:#fff">72%</b><i style="color:#fff;opacity:.8">n=183</i></td></tr><tr><th class="hm">รังสีรักษา (RT)</th><td class="ht" style="background:#2E8B7F;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.37)"><b style="color:#fff">56%</b><i style="color:#fff;opacity:.8">n=5</i></td><td class="ht" style="background:#2F6DB0;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.43)"><b style="color:#fff">48%</b><i style="color:#fff;opacity:.8">n=55</i></td><td class="ht" style="background:#D98A2B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.26)"><b style="color:#fff">69%</b><i style="color:#fff;opacity:.8">n=124</i></td><td class="ht" style="background:#C0453B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.56)"><b style="color:#1b2730">33%</b><i style="color:#1b2730;opacity:.8">n=83</i></td></tr><tr><th class="hm">ผ่าตัด (RP)</th><td class="ht" style="background:#2E8B7F;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.56)"><b style="color:#1b2730">33%</b><i style="color:#1b2730;opacity:.8">n=3</i></td><td class="ht" style="background:#2F6DB0;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.42)"><b style="color:#fff">50%</b><i style="color:#fff;opacity:.8">n=57</i></td><td class="ht" style="background:#D98A2B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.61)"><b style="color:#1b2730">28%</b><i style="color:#1b2730;opacity:.8">n=50</i></td><td class="ht" style="background:#C0453B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.75)"><b style="color:#1b2730">11%</b><i style="color:#1b2730;opacity:.8">n=28</i></td></tr><tr><th class="hm">เคมีบำบัด</th><td class="ht z"><span>·</span></td><td class="ht" style="background:#2F6DB0;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.79)"><b style="color:#1b2730">6%</b><i style="color:#1b2730;opacity:.8">n=7</i></td><td class="ht" style="background:#D98A2B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.80)"><b style="color:#1b2730">5%</b><i style="color:#1b2730;opacity:.8">n=9</i></td><td class="ht" style="background:#C0453B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.60)"><b style="color:#1b2730">28%</b><i style="color:#1b2730;opacity:.8">n=71</i></td></tr><tr><th class="hm">มุ่งเป้า (ARPI)</th><td class="ht z"><span>·</span></td><td class="ht z"><span>·</span></td><td class="ht" style="background:#D98A2B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.83)"><b style="color:#1b2730">1%</b><i style="color:#1b2730;opacity:.8">n=2</i></td><td class="ht" style="background:#C0453B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.78)"><b style="color:#1b2730">8%</b><i style="color:#1b2730;opacity:.8">n=19</i></td></tr><tr><th class="hm">หัตถการ (IR)</th><td class="ht z"><span>·</span></td><td class="ht z"><span>·</span></td><td class="ht z"><span>·</span></td><td class="ht" style="background:#C0453B;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.82)"><b style="color:#1b2730">2%</b><i style="color:#1b2730;opacity:.8">n=5</i></td></tr><tr><th class="hm">ภูมิคุ้มกัน (IO)</th><td class="ht z"><span>·</span></td><td class="ht" style="background:#2F6DB0;opacity:1;box-shadow:inset 0 0 0 999px rgba(255,255,255,0.83)"><b style="color:#1b2730">1%</b><i style="color:#1b2730;opacity:.8">n=1</i></td><td class="ht z"><span>·</span></td><td class="ht z"><span>·</span></td></tr></tbody></table>
+<div class="legendnote">ADT ไต่ขึ้นตามระยะ (22%→72%) · รังสีพีคที่ระยะ III (69%) · ผ่าตัดเด่นระยะต้น · เคมี/ARPI พุ่งเฉพาะระยะแพร่กระจาย</div></div>
+
+<div class="sec-h">
+<div class="sec-k">มุมมองที่ 2 · ชุดการรักษา (regimen)</div>
+<div class="sec-t">รูปแบบการรักษาที่ผู้ป่วยได้รับจริง แยกตามระยะ</div>
+<div class="sec-d">แต่ละผู้ป่วยถูกจัดเป็นหนึ่งชุดการรักษาตามวิธีที่ได้รับร่วมกัน ร้อยละคิดเทียบผู้ป่วยในระยะนั้น (แท่งลายทาง = การรักษาแบบผสม)</div>
+</div>
+<div class="panels"><section class="panel" style="--c:#2E8B7F">
+        <header class="phead"><div class="ptag">ระยะ I</div>
+        <div class="pmeta"><span>ระยะเริ่มต้น</span>
+        <span class="pn">9 ผู้ป่วย · ได้รับหลายวิธีร่วม 11% · n น้อย ระวังการตีความ</span></div></header>
+        <div class="pbars"><div class="brow">
+            <div class="bname">RT</div>
+            <div class="btrack"><span class="bfill" style="width:100.0%;background:#2E8B7F"></span></div>
+            <div class="bval"><b>44.4%</b><i>n=4</i></div></div><div class="brow">
+            <div class="bname">RP</div>
+            <div class="btrack"><span class="bfill" style="width:75.0%;background:#2E8B7F"></span></div>
+            <div class="bval"><b>33.3%</b><i>n=3</i></div></div><div class="brow">
+            <div class="bname">ADT</div>
+            <div class="btrack"><span class="bfill" style="width:25.0%;background:#2E8B7F"></span></div>
+            <div class="bval"><b>11.1%</b><i>n=1</i></div></div><div class="brow">
+            <div class="bname">RT + ADT<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:25.0%;background:repeating-linear-gradient(115deg,#2E8B7F,#2E8B7F 7px,#2E8B7Fcc 7px,#2E8B7Fcc 14px)"></span></div>
+            <div class="bval"><b>11.1%</b><i>n=1</i></div></div></div></section>
+<section class="panel" style="--c:#2F6DB0">
+        <header class="phead"><div class="ptag">ระยะ II</div>
+        <div class="pmeta"><span>ระยะลุกลามเฉพาะที่</span>
+        <span class="pn">114 ผู้ป่วย · ได้รับหลายวิธีร่วม 47%</span></div></header>
+        <div class="pbars"><div class="brow">
+            <div class="bname">RP</div>
+            <div class="btrack"><span class="bfill" style="width:100.0%;background:#2F6DB0"></span></div>
+            <div class="bval"><b>38.6%</b><i>n=44</i></div></div><div class="brow">
+            <div class="bname">RT + ADT<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:84.1%;background:repeating-linear-gradient(115deg,#2F6DB0,#2F6DB0 7px,#2F6DB0cc 7px,#2F6DB0cc 14px)"></span></div>
+            <div class="bval"><b>32.5%</b><i>n=37</i></div></div><div class="brow">
+            <div class="bname">RT</div>
+            <div class="btrack"><span class="bfill" style="width:22.7%;background:#2F6DB0"></span></div>
+            <div class="bval"><b>8.8%</b><i>n=10</i></div></div><div class="brow">
+            <div class="bname">RP + ADT<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:11.4%;background:repeating-linear-gradient(115deg,#2F6DB0,#2F6DB0 7px,#2F6DB0cc 7px,#2F6DB0cc 14px)"></span></div>
+            <div class="bval"><b>4.4%</b><i>n=5</i></div></div><div class="brow">
+            <div class="bname">ADT</div>
+            <div class="btrack"><span class="bfill" style="width:11.4%;background:#2F6DB0"></span></div>
+            <div class="bval"><b>4.4%</b><i>n=5</i></div></div><div class="brow">
+            <div class="bname">RP + RT + ADT<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:9.1%;background:repeating-linear-gradient(115deg,#2F6DB0,#2F6DB0 7px,#2F6DB0cc 7px,#2F6DB0cc 14px)"></span></div>
+            <div class="bval"><b>3.5%</b><i>n=4</i></div></div><div class="brow">
+            <div class="bname">อื่นๆ</div>
+            <div class="btrack"><span class="bfill" style="width:20.5%;background:#B8BfC5"></span></div>
+            <div class="bval"><b>7.9%</b><i>n=9</i></div></div></div></section>
+<section class="panel" style="--c:#D98A2B">
+        <header class="phead"><div class="ptag">ระยะ III</div>
+        <div class="pmeta"><span>ระยะลุกลามต่อมน้ำเหลือง</span>
+        <span class="pn">180 ผู้ป่วย · ได้รับหลายวิธีร่วม 52%</span></div></header>
+        <div class="pbars"><div class="brow">
+            <div class="bname">RT + ADT<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:100.0%;background:repeating-linear-gradient(115deg,#D98A2B,#D98A2B 7px,#D98A2Bcc 7px,#D98A2Bcc 14px)"></span></div>
+            <div class="bval"><b>38.9%</b><i>n=70</i></div></div><div class="brow">
+            <div class="bname">RT</div>
+            <div class="btrack"><span class="bfill" style="width:55.7%;background:#D98A2B"></span></div>
+            <div class="bval"><b>21.7%</b><i>n=39</i></div></div><div class="brow">
+            <div class="bname">RP</div>
+            <div class="btrack"><span class="bfill" style="width:48.6%;background:#D98A2B"></span></div>
+            <div class="bval"><b>18.9%</b><i>n=34</i></div></div><div class="brow">
+            <div class="bname">ADT</div>
+            <div class="btrack"><span class="bfill" style="width:17.1%;background:#D98A2B"></span></div>
+            <div class="bval"><b>6.7%</b><i>n=12</i></div></div><div class="brow">
+            <div class="bname">RP + RT + ADT<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:12.9%;background:repeating-linear-gradient(115deg,#D98A2B,#D98A2B 7px,#D98A2Bcc 7px,#D98A2Bcc 14px)"></span></div>
+            <div class="bval"><b>5.0%</b><i>n=9</i></div></div><div class="brow">
+            <div class="bname">อื่นๆ</div>
+            <div class="btrack"><span class="bfill" style="width:22.9%;background:#B8BfC5"></span></div>
+            <div class="bval"><b>8.9%</b><i>n=16</i></div></div></div></section>
+<section class="panel" style="--c:#C0453B">
+        <header class="phead"><div class="ptag">ระยะ IV</div>
+        <div class="pmeta"><span>ระยะแพร่กระจาย</span>
+        <span class="pn">253 ผู้ป่วย · ได้รับหลายวิธีร่วม 46%</span></div></header>
+        <div class="pbars"><div class="brow">
+            <div class="bname">ADT</div>
+            <div class="btrack"><span class="bfill" style="width:100.0%;background:#C0453B"></span></div>
+            <div class="bval"><b>29.2%</b><i>n=74</i></div></div><div class="brow">
+            <div class="bname">ADT + Chemo<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:51.4%;background:repeating-linear-gradient(115deg,#C0453B,#C0453B 7px,#C0453Bcc 7px,#C0453Bcc 14px)"></span></div>
+            <div class="bval"><b>15.0%</b><i>n=38</i></div></div><div class="brow">
+            <div class="bname">RT + ADT<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:45.9%;background:repeating-linear-gradient(115deg,#C0453B,#C0453B 7px,#C0453Bcc 7px,#C0453Bcc 14px)"></span></div>
+            <div class="bval"><b>13.4%</b><i>n=34</i></div></div><div class="brow">
+            <div class="bname">RT</div>
+            <div class="btrack"><span class="bfill" style="width:44.6%;background:#C0453B"></span></div>
+            <div class="bval"><b>13.0%</b><i>n=33</i></div></div><div class="brow">
+            <div class="bname">Chemo</div>
+            <div class="btrack"><span class="bfill" style="width:18.9%;background:#C0453B"></span></div>
+            <div class="bval"><b>5.5%</b><i>n=14</i></div></div><div class="brow">
+            <div class="bname">ADT + ARPI<span class="cx">ผสม</span></div>
+            <div class="btrack"><span class="bfill" style="width:16.2%;background:repeating-linear-gradient(115deg,#C0453B,#C0453B 7px,#C0453Bcc 7px,#C0453Bcc 14px)"></span></div>
+            <div class="bval"><b>4.7%</b><i>n=12</i></div></div><div class="brow">
+            <div class="bname">อื่นๆ</div>
+            <div class="btrack"><span class="bfill" style="width:64.9%;background:#B8BfC5"></span></div>
+            <div class="bval"><b>19.0%</b><i>n=48</i></div></div></div></section></div>
+
+<footer>
+<span>ที่มา: ทะเบียนมะเร็งต่อมลูกหมาก โรงพยาบาลจุฬาภรณ์ · จับคู่ด้วย HN · นับต่อผู้ป่วย</span>
+<span class="mono">RP ผ่าตัด · RT รังสี · ADT ฮอร์โมน · ARPI มุ่งเป้า · ไม่รวมผู้ป่วยที่มีเฉพาะประคับประคอง/ส่งต่อ/ปฏิเสธ/ขาดติดตาม และที่ไม่ระบุระยะ</span>
+</footer>
+</div></body></html>

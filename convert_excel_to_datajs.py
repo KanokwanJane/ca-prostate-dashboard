@@ -1,149 +1,207 @@
 """
-Convert CA Prostate Excel registry export to aggregated data.js for the static dashboard.
+Build aggregate data.js for the prostate regimen-by-stage infographic.
 
 Usage:
-  pip install pandas xlrd
-  python convert_excel_to_datajs.py "รายงานสรุปข้อมูลผู้ป่วยมะเร็งต่อมลูกหมาก (CA Prostate) ปี 2564-2568.xls"
-
-Output:
-  data.js  (safe aggregate data only; no HN / CTB row-level export)
+  python convert_excel_to_datajs.py prostate_cancer_dashboard.xlsx data.js
 """
 from __future__ import annotations
 
 import json
-import re
 import sys
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import pandas as pd
 
-PRIMARY_SHEET = "รายการ Cancer Primary "
-PROCEDURE_SHEET = "หัตถการ"
-RECURRENT_SHEET = "Cancer Recurrent"
-RECURRENT_TREATMENT_SHEET = "treatment recurrent"
+
+STAGE_ORDER = ["I", "II", "III", "IV"]
+STAGE_META = {
+    "I": {"label": "ระยะ I", "name": "ระยะเริ่มต้น", "color": "#2E8B7F"},
+    "II": {"label": "ระยะ II", "name": "ระยะลุกลามเฉพาะที่", "color": "#2F6DB0"},
+    "III": {"label": "ระยะ III", "name": "ระยะลุกลามต่อมน้ำเหลือง", "color": "#D98A2B"},
+    "IV": {"label": "ระยะ IV", "name": "ระยะแพร่กระจาย", "color": "#C0453B"},
+}
+
+TREATMENT_LABELS = {
+    "Hormone": "ADT",
+    "Radiation": "RT",
+    "Surgery": "RP",
+    "Chemotherapy": "Chemo",
+    "Targeted Therapy": "ARPI",
+    "Interventional": "IR",
+    "Immonotherapy": "IO",
+    "Other": "อื่นๆ",
+}
+
+HEATMAP_TREATMENTS = [
+    ("Hormone", "ฮอร์โมน (ADT)"),
+    ("Radiation", "รังสีรักษา (RT)"),
+    ("Surgery", "ผ่าตัด (RP)"),
+    ("Chemotherapy", "เคมีบำบัด"),
+    ("Targeted Therapy", "มุ่งเป้า (ARPI)"),
+    ("Interventional", "หัตถการ (IR)"),
+    ("Immonotherapy", "ภูมิคุ้มกัน (IO)"),
+]
+
+ACTIVE_TREATMENTS = set(TREATMENT_LABELS)
+NON_ACTIVE = {"Loss Follow-up", "Refer", "Supportive", "ปฏิเสธการรักษา", "ไม่ระบุ"}
 
 
-def clean_text(value):
+def clean(value, default="ไม่ระบุ"):
     if pd.isna(value):
-        return "ไม่ระบุ"
+        return default
     text = str(value).strip()
-    return text if text else "ไม่ระบุ"
+    return text if text else default
 
 
-def map_t_to_stage(value):
-    """Map T value to broad CA stage group. T1->Stage 1, T2->Stage 2, etc."""
-    if pd.isna(value):
-        return "ไม่ระบุ"
-    text = str(value).strip().upper().replace(" ", "")
-    text = re.sub(r"^T", "", text)
-    if text.startswith("1"):
-        return "ระยะที่ 1"
-    if text.startswith("2"):
-        return "ระยะที่ 2"
-    if text.startswith("3"):
-        return "ระยะที่ 3"
-    if text.startswith("4"):
-        return "ระยะที่ 4"
-    return "ไม่ระบุ"
+def pct(numerator, denominator, digits=1):
+    if not denominator:
+        return 0
+    return round((numerator / denominator) * 100, digits)
 
 
-def count_rows(df, col, top=None):
-    out = (
-        df[col]
-        .map(clean_text)
-        .value_counts(dropna=False)
-        .reset_index()
-        .rename(columns={"index": col, col: "count"})
-    )
-    out.columns = [col, "count"]
-    if top:
-        out = out.head(top)
-    return out.to_dict("records")
+def fmt_regimen(treatments):
+    labels = [TREATMENT_LABELS.get(t, t) for t in treatments]
+    order = ["RP", "RT", "ADT", "Chemo", "ARPI", "IR", "IO", "อื่นๆ"]
+    labels = sorted(labels, key=lambda x: order.index(x) if x in order else len(order))
+    return " + ".join(labels)
 
 
 def main():
-    if len(sys.argv) < 2:
-        raise SystemExit("Usage: python convert_excel_to_datajs.py <excel-file.xls/xlsx>")
+    excel_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("prostate_cancer_dashboard.xlsx")
+    output_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("data.js")
 
-    excel_path = Path(sys.argv[1])
-    output_path = Path(sys.argv[2]) if len(sys.argv) >= 3 else Path("data.js")
+    dashboard = pd.read_excel(excel_path, sheet_name="Dashboard")
+    patients = pd.read_excel(excel_path, sheet_name="Patient Data")
+    treatments = pd.read_excel(excel_path, sheet_name="Treatment Data")
+    unknown = pd.read_excel(excel_path, sheet_name="Unknown", header=1)
 
-    primary = pd.read_excel(excel_path, sheet_name=PRIMARY_SHEET)
-    procedure = pd.read_excel(excel_path, sheet_name=PROCEDURE_SHEET)
-    recurrent = pd.read_excel(excel_path, sheet_name=RECURRENT_SHEET)
-    recurrent_treatment = pd.read_excel(excel_path, sheet_name=RECURRENT_TREATMENT_SHEET)
+    patients["HN"] = patients["HN"].map(clean)
+    patients["stage"] = patients["Stage_หลัก"].map(clean)
+    patients = patients[patients["stage"].isin(STAGE_ORDER)].copy()
 
-    primary["stage_group"] = primary["T"].map(map_t_to_stage)
-    primary["age"] = pd.to_numeric(primary.get("อายุ ณ.วันที่วินิจฉัย"), errors="coerce")
+    treatments["HN"] = treatments["HN"].map(clean)
+    treatments["stage"] = treatments["Stage_หลัก"].map(clean)
+    treatments["treatment"] = treatments["วิธีการรักษา"].map(clean)
+    treatments = treatments[treatments["stage"].isin(STAGE_ORDER)].copy()
 
-    # one row per CTB + treatment to avoid duplicate procedure rows inflating patient treatment count
-    treatment_patient = procedure[["CTB No.", "วิธีการรักษา"]].dropna(subset=["CTB No."]).drop_duplicates()
-    stage_treatment = primary[["CTB No.", "stage_group"]].merge(treatment_patient, on="CTB No.", how="left")
-    stage_treatment["วิธีการรักษา"] = stage_treatment["วิธีการรักษา"].map(clean_text)
+    stage_patient_counts = {
+        stage: int(patients.loc[patients["stage"] == stage, "HN"].nunique())
+        for stage in STAGE_ORDER
+    }
 
-    stage_treatment_summary = (
-        stage_treatment.groupby(["stage_group", "วิธีการรักษา"], dropna=False)
-        .size()
-        .reset_index(name="count")
-        .rename(columns={"stage_group": "stage", "วิธีการรักษา": "treatment"})
-        .sort_values(["stage", "count"], ascending=[True, False])
+    # Coverage by treatment is per patient, so duplicated event rows do not inflate percentages.
+    patient_treatment = (
+        treatments[["HN", "stage", "treatment"]]
+        .drop_duplicates()
+        .query("treatment not in @NON_ACTIVE")
     )
 
-    # Stage -> treatment -> ICD9 sankey links
-    proc_join = primary[["CTB No.", "stage_group"]].merge(procedure, on="CTB No.", how="inner")
-    proc_join["วิธีการรักษา"] = proc_join["วิธีการรักษา"].map(clean_text)
-    proc_join["ชื่อ ICD-9"] = proc_join["ชื่อ ICD-9"].map(clean_text)
+    coverage = {}
+    for treatment, label in HEATMAP_TREATMENTS:
+        row = {"treatment": treatment, "label": label, "stages": {}}
+        for stage in STAGE_ORDER:
+            count = int(
+                patient_treatment[
+                    (patient_treatment["stage"] == stage)
+                    & (patient_treatment["treatment"] == treatment)
+                ]["HN"].nunique()
+            )
+            total = stage_patient_counts[stage]
+            row["stages"][stage] = {"count": count, "percent": pct(count, total, 0)}
+        coverage[treatment] = row
 
-    stage_to_treatment = (
-        proc_join.groupby(["stage_group", "วิธีการรักษา"]).size().reset_index(name="value")
-    )
-    treatment_to_icd = (
-        proc_join.groupby(["วิธีการรักษา", "ชื่อ ICD-9"]).size().reset_index(name="value")
-        .sort_values("value", ascending=False)
-        .head(40)
-    )
-    sankey_links = []
-    for _, r in stage_to_treatment.iterrows():
-        sankey_links.append({"source": r["stage_group"], "target": r["วิธีการรักษา"], "value": int(r["value"])})
-    for _, r in treatment_to_icd.iterrows():
-        sankey_links.append({"source": r["วิธีการรักษา"], "target": r["ชื่อ ICD-9"], "value": int(r["value"])})
+    patient_stage = dict(zip(patients["HN"], patients["stage"]))
+    active = patient_treatment[patient_treatment["treatment"].isin(ACTIVE_TREATMENTS)]
+    grouped = defaultdict(set)
+    for _, row in active.iterrows():
+        grouped[row["HN"]].add(row["treatment"])
 
-    metastatic_cols = [c for c in ["Bone", "Brain", "Liver", "Lung", "Lymph", "Peritoneum"] if c in primary.columns]
-    metastatic_summary = []
-    for c in metastatic_cols:
-        yes_count = primary[c].notna().sum()
-        metastatic_summary.append({"site": c, "count": int(yes_count)})
+    regimen_counts = {stage: Counter() for stage in STAGE_ORDER}
+    multimodal_counts = {stage: 0 for stage in STAGE_ORDER}
+    active_patient_counts = {stage: 0 for stage in STAGE_ORDER}
 
-    year_summary = (
-        primary["ปี"].map(clean_text).value_counts().reset_index()
-    )
-    year_summary.columns = ["year", "count"]
-    year_summary = year_summary.sort_values("year")
+    for hn, treatment_set in grouped.items():
+        stage = patient_stage.get(hn)
+        if stage not in STAGE_ORDER or not treatment_set:
+            continue
+        active_patient_counts[stage] += 1
+        if len(treatment_set) >= 2:
+            multimodal_counts[stage] += 1
+        regimen_counts[stage][fmt_regimen(treatment_set)] += 1
+
+    panels = []
+    for stage in STAGE_ORDER:
+        total = stage_patient_counts[stage]
+        counter = regimen_counts[stage]
+        top = counter.most_common(6)
+        if len(counter) > 6:
+            shown = sum(v for _, v in top)
+            top.append(("อื่นๆ (รวม)", sum(counter.values()) - shown))
+
+        max_count = max([v for _, v in top] or [1])
+        panels.append(
+            {
+                "stage": stage,
+                "label": STAGE_META[stage]["label"],
+                "name": STAGE_META[stage]["name"],
+                "color": STAGE_META[stage]["color"],
+                "patients": total,
+                "activePatients": active_patient_counts[stage],
+                "multimodalPatients": multimodal_counts[stage],
+                "multimodalPercent": pct(multimodal_counts[stage], active_patient_counts[stage], 0),
+                "regimens": [
+                    {
+                        "name": name,
+                        "count": int(count),
+                        "percent": pct(count, total, 1),
+                        "width": pct(count, max_count, 1),
+                        "combined": " + " in name,
+                    }
+                    for name, count in top
+                    if count > 0
+                ],
+            }
+        )
+
+    total_known = int(patients["HN"].nunique())
+    total_active = sum(active_patient_counts.values())
+    total_multimodal = sum(multimodal_counts.values())
 
     data = {
-        "kpis": {
-            "patients": int(primary["CTB No."].nunique()),
-            "procedurePatients": int(procedure["CTB No."].nunique()),
-            "procedureRows": int(len(procedure)),
-            "recurrentPatients": int(recurrent["CTB No."].nunique()),
-            "recurrentTreatmentRows": int(len(recurrent_treatment)),
-            "recurrentRate": round((recurrent["CTB No."].nunique() / primary["CTB No."].nunique()) * 100, 1),
-            "avgAge": round(float(primary["age"].mean()), 1) if primary["age"].notna().any() else None,
+        "sourceFile": excel_path.name,
+        "summary": {
+            "knownStagePatients": total_known,
+            "treatmentEvents": int(len(treatments)),
+            "stageCount": len(STAGE_ORDER),
+            "unknownStagePatients": int(dashboard.iloc[4, 7]) if pd.notna(dashboard.iloc[4, 7]) else int(unknown["HN"].nunique()) if "HN" in unknown else 0,
+            "activePatients": int(total_active),
+            "multimodalPatients": int(total_multimodal),
+            "multimodalPercent": pct(total_multimodal, total_active, 0),
         },
-        "stageCounts": (
-            primary["stage_group"].value_counts().reindex(["ระยะที่ 1", "ระยะที่ 2", "ระยะที่ 3", "ระยะที่ 4", "ไม่ระบุ"], fill_value=0)
-            .reset_index().rename(columns={"index": "stage", "stage_group": "count"}).to_dict("records")
-        ),
-        "treatmentCounts": count_rows(treatment_patient, "วิธีการรักษา"),
-        "procedureCounts": count_rows(procedure, "ชื่อ ICD-9", top=20),
-        "stageTreatment": stage_treatment_summary.to_dict("records"),
-        "sankeyLinks": sankey_links,
-        "metastaticSummary": metastatic_summary,
-        "yearSummary": year_summary.to_dict("records"),
+        "stages": [
+            {
+                "stage": stage,
+                "label": STAGE_META[stage]["label"],
+                "name": STAGE_META[stage]["name"],
+                "color": STAGE_META[stage]["color"],
+                "patients": stage_patient_counts[stage],
+            }
+            for stage in STAGE_ORDER
+        ],
+        "heatmap": [coverage[treatment] for treatment, _ in HEATMAP_TREATMENTS],
+        "panels": panels,
+        "notes": [
+            "รวมระยะย่อย IIA/IIB/IIC เป็น II, IIIA/IIIB/IIIC เป็น III, IVA/IVB เป็น IV",
+            "Heatmap นับต่อผู้ป่วยต่อวิธีการรักษา ส่วนเหตุการณ์การรักษาทั้งหมดมาจาก Treatment Data",
+            "Regimen นับชุดวิธีการรักษาต่อผู้ป่วย โดยตัดกลุ่มประคับประคอง ส่งต่อ ปฏิเสธ ขาดติดตาม และไม่ระบุออกจากการจัดชุด",
+        ],
     }
 
     output_path.write_text(
-        "window.CA_PROSTATE_DATA = " + json.dumps(data, ensure_ascii=False) + ";\n",
+        "window.CA_PROSTATE_DATA = "
+        + json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+        + ";\n",
         encoding="utf-8",
     )
     print(f"Created {output_path.resolve()}")
